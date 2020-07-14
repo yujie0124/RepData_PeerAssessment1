@@ -369,22 +369,140 @@ summary {
 <div id="loading-and-preprocessing-the-data" class="section level2">
 <h2>Loading and preprocessing the data</h2>
 <p>The dataset “Activity monitoring data” contains steps, date and interval variables. After observing and cleaning the data,we are able to answer all the questions.</p>
+<pre class="{r}"><code>library(knitr)
+library(ggplot2)
+library(dplyr)
+library(plyr)
+activity &lt;- read.csv(&quot;activity.csv&quot;,header=T)</code></pre>
 </div>
 <div id="what-is-mean-total-number-of-steps-taken-per-day" class="section level2">
 <h2>What is mean total number of steps taken per day?</h2>
 <p>The mean of total number of steps taken per day is 10766.19. The median of total number of steps taken per day is 10765.</p>
+<pre class="{r}"><code>totalstepsperday &lt;- aggregate(steps ~ date, data = activity, FUN = sum, na.rm = TRUE)
+head(totalstepsperday)
+hist(totalstepsperday$steps, main=&quot;Total Steps per Day&quot;, xlab=&quot;Number of Steps per Day&quot;,  ylab = &quot;Interval&quot;, col=&quot;blue&quot;)
+dev.copy(png,file = &quot;HistNumSteps.png&quot;)
+dev.off()</code></pre>
+<p>Mean &amp; median</p>
+<pre class="{r}"><code>msteps &lt;- mean(totalstepsperday$steps)
+msteps
+medsteps &lt;- median(totalstepsperday$steps)
+medsteps</code></pre>
 </div>
 <div id="what-is-the-average-daily-activity-pattern" class="section level2">
 <h2>What is the average daily activity pattern?</h2>
 <p>The 835 5-min interval contains the maximum number of steps on average across all the days in the dataset, which is 10927 steps.</p>
+<pre class="{r}"><code>## five minute average using steps to interval - FUN = mean instead of sum
+activity &lt;- read.csv(&quot;activity.csv&quot;,header=T)
+fivemin &lt;- aggregate(steps ~ interval, data = activity, FUN = mean, na.rm = TRUE)
+## line chart
+plot(x = fivemin$interval, 
+     y = fivemin$steps, 
+     type = &quot;l&quot;, 
+     col = &quot;blue&quot;,
+     xlab = &quot;5-minute Intervals&quot;,
+     ylab = &quot;Average Steps Taken in Days&quot;,
+     main = &quot;Average Daily Activity Pattern&quot;)
+dev.copy(png,file = &quot;AvgActivityPattern.png&quot;)
+dev.off()
+
+#Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+maxsteps &lt;- fivemin[which.max(fivemin$steps),]
+maxsteps</code></pre>
 </div>
 <div id="imputing-missing-values" class="section level2">
 <h2>Imputing missing values</h2>
 <p>Some values are different from the estimates from the first part of the assignment (original data) since NA values are removed, the mean is still the same but median will be affected, which differs from original data by 1.19.</p>
+<pre class="{r}"><code>#Calculate and report the total number of missing values in the dataset
+activity &lt;- read.csv(&quot;activity.csv&quot;,header=T)
+table(is.na(activity))
+
+#Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated.#In the original data set aggregating (mean) steps over 5-minute interval
+meaninterval&lt;- aggregate(steps ~ interval, activity, FUN=mean)
+#Merging the mean of total steps for activity date with the original data set
+anew &lt;- merge(x=activity, y=meaninterval, by=&quot;interval&quot;)
+#Replacing the NA values with the mean for that 5-minute interval
+anew$steps &lt;- ifelse(is.na(anew$steps.x), anew$steps.y, anew$steps.x)
+#Merged dataset which will be subsetted in the next step by removing not required columns
+head(anew)
+
+#Create a new dataset that is equal to the original dataset but with the missing data filled in.
+anew &lt;- select(anew, steps, date, interval)
+head(anew)
+
+
+#Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.
+#Do these values differ from the estimates from the first part of the assignment?
+#What is the impact of imputing missing data on the estimates of the total daily number of steps?
+#Aggregating(summation) of steps over date
+totalstepsperday &lt;- aggregate(steps ~ date, data = activity, FUN = sum, na.rm = TRUE)
+totalsteps_new&lt;- aggregate(steps ~ date, anew, FUN=sum)
+
+#Plotting
+#Setting up the pannel for one row and two columns
+par(mfrow=c(1,2))
+
+#Histogram after imputing NA values with mean of 5-min interval
+hist(totalsteps_new$steps, 
+     col=&quot;blue&quot;,
+     xlab = &quot;Total Number of Steps&quot;, 
+     ylab = &quot;Frequency&quot;,
+     ylim = c(0,35),
+     main = &quot;Total Number Of Steps Taken Each day \n(After imputing NA values)&quot;,
+     cex.main = 0.7)
+
+#Histogram with the orginal dataset
+hist(totalstepsperday$steps, 
+     col=&quot;purple&quot;, 
+     xlab = &quot;Total Number of Steps&quot;, 
+     ylab = &quot;Frequency&quot;,
+     ylim = c(0,35),
+     main = &quot;Total Number Of Steps Taken Each day \n(Orginal Dataset)&quot;,
+     cex.main = 0.7)
+
+dev.copy(png,file = &quot;2hist.png&quot;)
+dev.off()
+</code></pre>
+<pre class="{r}"><code>msteps &lt;- mean(totalstepsperday$steps)
+msteps
+medsteps &lt;- median(totalstepsperday$steps)
+medsteps
+
+msteps_new &lt;- mean(totalsteps_new$steps)
+msteps_new
+medsteps_new &lt;- median(totalsteps_new$steps)
+medsteps_new
+
+#Comparing Means
+paste(&quot;New Mean      :&quot;, round(msteps_new,2), &quot;,&quot; ,  
+      &quot; Original Mean :&quot;, round(msteps,2),&quot;,&quot; , 
+      &quot; Difference :&quot;,round(msteps_new,2) -  round(msteps,2))
+
+#Comparing Medians
+paste(&quot;New Median    :&quot;, medsteps_new, &quot;,&quot;, 
+      &quot; Original Median :&quot;, medsteps,&quot;,&quot; , 
+      &quot; Difference :&quot;,round(medsteps_new-medsteps,2))</code></pre>
 </div>
 <div id="are-there-differences-in-activity-patterns-between-weekdays-and-weekends" class="section level2">
 <h2>Are there differences in activity patterns between weekdays and weekends?</h2>
 <p>Yes, the number of steps taken in weekday is higher than in weekend. Perhaps most of people are working in weekday so the steps taken is higher.</p>
+<pre class="{r}"><code>#Create a new factor variable in the dataset with two levels - &quot;weekday&quot; and &quot;weekend&quot; indicating whether a given date is a weekday or weekend day.
+library(chron)
+table(is.weekend(anew$date))
+anew$dayofweek &lt;- ifelse(is.weekend(anew$date), &quot;weekend&quot;, &quot;weekday&quot;)
+table(anew$dayofweek)
+meaninterval_new&lt;- aggregate(steps ~ interval + dayofweek, anew, FUN=mean)
+head(meaninterval_new)
+
+ggplot(meaninterval_new, aes(x=interval, y=steps)) + 
+        geom_line(color=&quot;blue&quot;, size=1) + 
+        facet_wrap(~dayofweek, nrow=2) +
+        labs(x=&quot;\nInterval&quot;, y=&quot;\nNumber of steps&quot;, title = &quot;Total Number Of Steps Taken in Weekday &amp; Weekend&quot;)
+
+dev.copy(png,file = &quot;week.png&quot;)
+dev.off()
+
+</code></pre>
 <p>*Please refer code.R for the coding and the pictures of graphs</p>
 </div>
 
